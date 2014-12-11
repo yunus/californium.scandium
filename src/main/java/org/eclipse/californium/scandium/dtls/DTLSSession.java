@@ -76,6 +76,10 @@ public class DTLSSession {
 	 * The peer public key for RPK authentication
 	 */
 	private PublicKey peerRawPublicKey;	
+	/**
+	 * The peer's webid Uri for WebID authentication and authorization
+	 */
+	private String webidUri = null;
 
 	/**
 	 * Whether the session is active and application data can be sent to the
@@ -101,6 +105,11 @@ public class DTLSSession {
 	
 	/** The key exchange algorithm used in this session. */
 	private KeyExchangeAlgorithm keyExchange;
+	
+	/**
+	 * Indicates that both peers should exhance webId uri message
+	 */
+	private boolean exchangeWebIDURI = true;
 	
 	/**
 	 * Indicates whether only the RawPublicKey is sent or a full X.509
@@ -277,6 +286,10 @@ public class DTLSSession {
 		}
 	}
 
+	public boolean isExchangeWebIDURI() {
+		return exchangeWebIDURI;
+	}
+
 	public boolean sendRawPublicKey() {
 		return sendRawPublicKey;
 	}
@@ -303,5 +316,13 @@ public class DTLSSession {
 
     public void setPskIdentity(String pskIdentity) {
         this.pskIdentity = pskIdentity;
-    }	
+    }
+
+	public String getWebidUri() {
+		return webidUri;
+	}
+
+	public void setWebidUri(String webidUri) {
+		this.webidUri = webidUri;
+	}	
 }

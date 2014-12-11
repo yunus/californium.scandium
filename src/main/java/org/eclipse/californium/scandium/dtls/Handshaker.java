@@ -147,6 +147,7 @@ public abstract class Handshaker {
 
 	/** The handshaker's public key. */
 	protected PublicKey publicKey;
+	
 
 	/** The handshaker's certificate chain. */
 	protected Certificate[] certificates;

@@ -38,10 +38,10 @@ public class ExampleDTLSClient {
 
 	static {
 		ScandiumLogger.initialize();
-		ScandiumLogger.setLevel(Level.FINE);
+		ScandiumLogger.setLevel(Level.FINEST);
 	}
 
-	private static final int DEFAULT_PORT = 5684;
+	private static final int DEFAULT_PORT = 20220;
 	
 	private static final String TRUST_STORE_PASSWORD = "rootPass";
 	private final static String KEY_STORE_PASSWORD = "endPass";
@@ -50,8 +50,12 @@ public class ExampleDTLSClient {
 
 	private DTLSConnector dtlsConnector;
 	
-	public ExampleDTLSClient() {
+	private String uri="localhost";
+	
+	public ExampleDTLSClient(String uri) {
 	    try {
+	    	
+	    	this.uri = uri;
 	        // load key store
             KeyStore keyStore = KeyStore.getInstance("JKS");
             InputStream in = new FileInputStream(KEY_STORE_LOCATION);
@@ -67,6 +71,7 @@ public class ExampleDTLSClient {
             trustedCertificates[0] = trustStore.getCertificate("root");
     
     		dtlsConnector = new DTLSConnector(new InetSocketAddress(0), trustedCertificates);
+    		dtlsConnector.getConfig().webIDURI = "example.org/what-a-nice-resource/";
     		dtlsConnector.getConfig().setPskStore(new StaticPskStore("Client_identity", "secretPSK".getBytes()));
     		dtlsConnector.getConfig().setPrivateKey((PrivateKey)keyStore.getKey("client", KEY_STORE_PASSWORD.toCharArray()), keyStore.getCertificateChain("client"), true);
     		
@@ -81,7 +86,7 @@ public class ExampleDTLSClient {
 	public void test() {
 		try {
 			dtlsConnector.start();
-			dtlsConnector.send(new RawData("HELLO WORLD".getBytes(), InetAddress.getByName("localhost") , DEFAULT_PORT));
+			dtlsConnector.send(new RawData("HELLO WORLD".getBytes(), InetAddress.getByName(uri) , DEFAULT_PORT));
 		} catch (IOException e) {
 			e.printStackTrace();
 		}
@@ -94,7 +99,7 @@ public class ExampleDTLSClient {
 			
 			System.out.println(new String(raw.getBytes()));
 			
-			dtlsConnector.close(new InetSocketAddress("localhost" , DEFAULT_PORT));
+			dtlsConnector.close(new InetSocketAddress(uri , DEFAULT_PORT));
 			
 			// notify main thread to exit
 			synchronized (ExampleDTLSClient.class) {
@@ -105,7 +110,7 @@ public class ExampleDTLSClient {
 	
 	public static void main(String[] args) throws InterruptedException {
 		
-		ExampleDTLSClient client = new ExampleDTLSClient();
+		ExampleDTLSClient client = new ExampleDTLSClient("aaaa::ff:fe02:232");
 		client.test();
 		
 		// Connector threads run as daemons so wait in main thread until handshake is done

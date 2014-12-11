@@ -56,6 +56,9 @@ public class DTLSConnectorConfig {
 
 	/** store of the PSK */
 	public PskStore pskStore = null;
+	
+	/** webid uri */
+	public String webIDURI = null;
 
 	/** the private key for RPK and X509 mode */
 	public PrivateKey privateKey = null;

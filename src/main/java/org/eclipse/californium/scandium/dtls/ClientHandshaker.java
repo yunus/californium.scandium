@@ -69,6 +69,8 @@ public class ClientHandshaker extends Handshaker {
 	 */
 	/** The server's {@link ServerHello}. Mandatory. */
 	protected ServerHello serverHello;
+	/** The server's {@link WebIDUriMessage}. Optional. */
+	protected WebIDUriMessage serverWebidUriMessage = null;
 	/** The server's {@link CertificateMessage}. Optional. */
 	protected CertificateMessage serverCertificate = null;
 	/** The server's {@link CertificateRequest}. Optional. */
@@ -83,6 +85,8 @@ public class ClientHandshaker extends Handshaker {
 
 	/** Used to retrieve identity/pre-shared-key for a given destination */
 	protected final PskStore pskStore;
+	
+	protected String webIDUri = null;
 
 	
 	
@@ -107,6 +111,7 @@ public class ClientHandshaker extends Handshaker {
 		this.pskStore = config.pskStore;
 		this.useRawPublicKey = config.sendRawKey;
 		this.preferredCipherSuite = config.preferredCipherSuite;
+		this.webIDUri =  config.webIDURI;
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -157,6 +162,10 @@ public class ClientHandshaker extends Handshaker {
 
 			case SERVER_HELLO:
 				receivedServerHello((ServerHello) fragment);
+				break;
+			
+			case WEBID_URI:
+				receivedServerWebIDUri((WebIDUriMessage)fragment);
 				break;
 
 			case CERTIFICATE:
@@ -323,6 +332,23 @@ public class ClientHandshaker extends Handshaker {
 			session.setSendRawPublicKey(true);
 		}
 	}
+	
+	/**
+	 * WebID uri of the server
+	 * 
+	 * @param message
+	 *            the server's {@link WebIDUriMessage}.
+	 */
+	private void receivedServerWebIDUri(WebIDUriMessage message) throws HandshakeException {
+		if (serverWebidUriMessage != null && (serverWebidUriMessage.getMessageSeq() == message.getMessageSeq())) {
+			// discard duplicate message
+			return;
+		}
+
+		serverWebidUriMessage = message;
+		session.setWebidUri(serverWebidUriMessage.getWebidUri());
+	}
+	
 
 	/**
 	 * Unless a anonymous cipher suite is used, the server always sends a
@@ -401,6 +427,7 @@ public class ClientHandshaker extends Handshaker {
 		CertificateMessage clientCertificate = null;
 		ClientKeyExchange clientKeyExchange = null;
 		CertificateVerify certificateVerify = null;
+		WebIDUriMessage clientWebidUriMessage = null;
 
 		/*
 		 * First, if required by server, send Certificate.
@@ -408,8 +435,14 @@ public class ClientHandshaker extends Handshaker {
 		if (certificateRequest != null) {
 			// TODO load the client's certificate according to the allowed
 			// parameters in the CertificateRequest
+			if(session.isExchangeWebIDURI()){
+				clientWebidUriMessage = new WebIDUriMessage(webIDUri);
+				flight.addMessage(wrapMessage(clientWebidUriMessage));
+			}
+			
 			if (session.sendRawPublicKey()){
 				clientCertificate = new CertificateMessage(publicKey.getEncoded());
+					
 			} else {
 				clientCertificate = new CertificateMessage(certificates);
 			}
@@ -472,10 +505,14 @@ public class ClientHandshaker extends Handshaker {
 			// prepare handshake messages
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientHello.toByteArray());
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHello.toByteArray());
+			if (null != serverWebidUriMessage)
+				handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverWebidUriMessage.toByteArray());			
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverCertificate.toByteArray());
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverKeyExchange.toByteArray());
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, certificateRequest.toByteArray());
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHelloDone.toByteArray());
+			if (null!=clientWebidUriMessage)
+				handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientWebidUriMessage.toByteArray());	
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientCertificate.toByteArray());
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientKeyExchange.toByteArray());
 			
@@ -505,6 +542,8 @@ public class ClientHandshaker extends Handshaker {
 			MessageDigest md = MessageDigest.getInstance("SHA-256");
 			md.update(clientHello.toByteArray());
 			md.update(serverHello.toByteArray());
+			if(serverWebidUriMessage != null)
+				md.update(serverWebidUriMessage.toByteArray());
 			if (serverCertificate != null) {
 				md.update(serverCertificate.toByteArray());
 			}
@@ -515,6 +554,9 @@ public class ClientHandshaker extends Handshaker {
 				md.update(certificateRequest.toByteArray());
 			}
 			md.update(serverHelloDone.toByteArray());
+			
+			if (clientWebidUriMessage != null)
+				md.update(clientWebidUriMessage.toByteArray());
 
 			if (clientCertificate != null) {
 				md.update(clientCertificate.toByteArray());

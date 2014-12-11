@@ -186,7 +186,11 @@ public abstract class HandshakeMessage implements DTLSMessage {
 		case HELLO_VERIFY_REQUEST:
 			body = HelloVerifyRequest.fromByteArray(bytesLeft);
 			break;
-
+			
+		case WEBID_URI:
+			body = WebIDUriMessage.fromByteArray(bytesLeft);
+			break;
+			
 		case CERTIFICATE:
 			body = CertificateMessage.fromByteArray(bytesLeft, useRawPublicKey);
 			break;

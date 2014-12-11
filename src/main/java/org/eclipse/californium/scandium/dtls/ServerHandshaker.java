@@ -77,6 +77,8 @@ public class ServerHandshaker extends Handshaker {
 	 * Store all the messages which can possibly be sent by the client. We
 	 * need these to compute the handshake hash.
 	 */
+	/** The client's {@link WebIDUriMessage}. Optional. */
+	protected WebIDUriMessage clientWebIDUriMessage = null ;
 	/** The client's {@link CertificateMessage}. Optional. */
 	protected CertificateMessage clientCertificate = null;
 	/** The client's {@link ClientKeyExchange}. mandatory. */
@@ -86,6 +88,9 @@ public class ServerHandshaker extends Handshaker {
 	
 	/** Used to retrieve pre-shared-key from a given client identity */
 	protected final PskStore pskStore;
+	
+	/** The server's webid uri */
+	protected String webIDUri = null;
 	
 	// Constructors ///////////////////////////////////////////////////
 
@@ -121,6 +126,7 @@ public class ServerHandshaker extends Handshaker {
 		this.supportedServerCertificateTypes.add(CertificateType.X_509);
 		this.supportedServerCertificateTypes
 				.add(CertificateType.RAW_PUBLIC_KEY);
+		this.webIDUri = config.webIDURI;
 	}
 
 	// Methods ////////////////////////////////////////////////////////
@@ -168,6 +174,10 @@ public class ServerHandshaker extends Handshaker {
 			switch (fragment.getMessageType()) {
 			case CLIENT_HELLO:
 				flight = receivedClientHello((ClientHello) fragment);
+				break;
+			
+			case WEBID_URI:
+				receivedClientWebIDUri((WebIDUriMessage)fragment);
 				break;
 
 			case CERTIFICATE:
@@ -240,6 +250,22 @@ public class ServerHandshaker extends Handshaker {
 	}
 	
 	/**
+	 * WebID uri of the client
+	 * 
+	 * @param message
+	 *            the client's {@link WebIDUriMessage}.
+	 */
+	private void receivedClientWebIDUri(WebIDUriMessage message) throws HandshakeException {
+		if (clientWebIDUriMessage != null && (clientWebIDUriMessage.getMessageSeq() == message.getMessageSeq())) {
+			// discard duplicate message
+			return;
+		}
+
+		clientWebIDUriMessage = message;
+		session.setWebidUri(clientWebIDUriMessage.getWebidUri());
+	}
+	
+	/**
 	 * If the server requires mutual authentication, the client must send its
 	 * certificate.
 	 * 
@@ -306,6 +332,10 @@ public class ServerHandshaker extends Handshaker {
 		}
 
 		DTLSFlight flight = new DTLSFlight();
+		
+		if (clientWebIDUriMessage != null) { //optional
+			md.update(clientWebIDUriMessage.getRawMessage());
+		}
 
 		// create handshake hash
 		if (clientCertificate != null) { // optional
@@ -470,7 +500,19 @@ public class ServerHandshaker extends Handshaker {
 			handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverHello.toByteArray());
 
 			/*
-			 * Second, send Certificate (if required by key exchange algorithm)
+			 * Second, send WebIDURI if there is a WebID uri to send
+			 */
+			WebIDUriMessage serverWebIDURIMessage = null;
+			if(webIDUri != null){
+				serverWebIDURIMessage = new WebIDUriMessage(webIDUri);
+				flight.addMessage(wrapMessage(serverWebIDURIMessage));
+				md.update(serverWebIDURIMessage.toByteArray());
+				handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, serverWebIDURIMessage.toByteArray());
+			}
+			
+			
+			/*
+			 * Third, send Certificate (if required by key exchange algorithm)
 			 */
 			CertificateMessage certificateMessage = null;
 			switch (keyExchange) {
@@ -494,7 +536,7 @@ public class ServerHandshaker extends Handshaker {
 			}
 
 			/*
-			 * Third, send ServerKeyExchange (if required by key exchange
+			 * Fourth, send ServerKeyExchange (if required by key exchange
 			 * algorithm)
 			 */
 			ServerKeyExchange serverKeyExchange = null;
@@ -530,7 +572,7 @@ public class ServerHandshaker extends Handshaker {
 			}
 
 			/*
-			 * Fourth, send CertificateRequest for client (if required)
+			 * Fifth, send CertificateRequest for client (if required)
 			 */
 			if (clientAuthenticationRequired && signatureAndHashAlgorithm != null) {
 
