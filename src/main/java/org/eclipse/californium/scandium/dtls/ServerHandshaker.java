@@ -263,6 +263,7 @@ public class ServerHandshaker extends Handshaker {
 
 		clientWebIDUriMessage = message;
 		session.setWebidUri(clientWebIDUriMessage.getWebidUri());
+		handshakeMessages = ByteArrayUtils.concatenate(handshakeMessages, clientWebIDUriMessage.getRawMessage());
 	}
 	
 	/**
