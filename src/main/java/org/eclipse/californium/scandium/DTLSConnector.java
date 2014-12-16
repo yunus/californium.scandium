@@ -271,6 +271,8 @@ public class DTLSConnector extends ConnectorBase {
 						LOGGER.finest(" => handshaker: "+handshaker);
 					}
 					if (handshaker == null) {
+						
+						
 						/*
 						 * A handshake message received, but no handshaker
 						 * available: this must mean that we either received
@@ -414,7 +416,7 @@ public class DTLSConnector extends ConnectorBase {
 		
 		InetSocketAddress peerAddress = message.getInetSocketAddress();
 		if (LOGGER.isLoggable(Level.FINE)) {
-			LOGGER.fine("Sending message to " + peerAddress);
+			LOGGER.fine("Sending message to " + peerAddress+" with message "+message.toString());
 		}
 		DTLSSession session = dtlsSessions.get(addressToKey(peerAddress));
 		
@@ -426,7 +428,8 @@ public class DTLSConnector extends ConnectorBase {
 		 * handshake will be initiated.
 		 */
 		Record encryptedMessage = null;
-		Handshaker handshaker = null;
+		/* TODO: Check whether fetching a previous handshaker violates the resumption process*/
+		Handshaker handshaker = handshakers.get(addressToKey(peerAddress));
 
 		if (session == null) {
 			// no session with endpoint available, create new empty session,
@@ -443,7 +446,9 @@ public class DTLSConnector extends ConnectorBase {
 				DTLSMessage fragment = new ApplicationMessage(message.getBytes());
 				encryptedMessage = new Record(ContentType.APPLICATION_DATA, session.getWriteEpoch(), session.getSequenceNumber(), fragment, session);
 				
-			} else {
+			} else if (handshaker == null){
+				
+				LOGGER.finest("USE Resuming client handshaker");
 				// try resuming session
 				handshaker = new ResumingClientHandshaker(peerAddress, message, session, rootCerts, config);
 				handshaker.setMaxFragmentLength(config.getMaxFragmentLength());
@@ -543,6 +548,7 @@ public class DTLSConnector extends ConnectorBase {
 
 		for (Record record : flight.getMessages()) {
 			if (flight.getTries() > 0) {
+				
 				// adjust the record sequence number
 				int epoch = record.getEpoch();
 				record.setSequenceNumber(flight.getSession().getSequenceNumber(epoch));
@@ -564,6 +570,8 @@ public class DTLSConnector extends ConnectorBase {
 
 		// send it over the UDP socket
 		try {
+			if(LOGGER.isLoggable(Level.FINEST))
+				LOGGER.finest("==>> sending the flight with trial "+flight.getTries());
 			for (DatagramPacket datagramPacket : datagrams) {
 				socket.send(datagramPacket);
 			}
