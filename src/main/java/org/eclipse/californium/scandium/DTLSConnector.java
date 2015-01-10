@@ -452,6 +452,9 @@ public class DTLSConnector extends ConnectorBase {
 				// try resuming session
 				handshaker = new ResumingClientHandshaker(peerAddress, message, session, rootCerts, config);
 				handshaker.setMaxFragmentLength(config.getMaxFragmentLength());
+			} else if (handshaker != null && flights.containsKey(addressToKey(peerAddress))){
+				LOGGER.warning("There is an ongoing handshake and now a new request arrived. We simply ignoring the new one");
+				return;
 			}
 			
 		}
@@ -571,7 +574,7 @@ public class DTLSConnector extends ConnectorBase {
 		// send it over the UDP socket
 		try {
 			if(LOGGER.isLoggable(Level.FINEST))
-				LOGGER.finest("==>> sending the flight with trial "+flight.getTries());
+				LOGGER.finest("==>> sending flight "+flight.hashCode()+" with "+flight.getTries() +"th trial, the flight: "+flight);
 			for (DatagramPacket datagramPacket : datagrams) {
 				socket.send(datagramPacket);
 			}
@@ -633,8 +636,13 @@ public class DTLSConnector extends ConnectorBase {
 	 *            the peer's address.
 	 */
 	private void cancelPreviousFlight(InetSocketAddress peerAddress) {
+		
 		DTLSFlight previousFlight = flights.get(addressToKey(peerAddress));
+		if(LOGGER.isLoggable(Level.FINEST))
+			LOGGER.finest("Entered to cancelling previous flights of "+flights.size()+" with keys "+flights.keySet());
 		if (previousFlight != null) {
+			if(LOGGER.isLoggable(Level.FINEST))
+				LOGGER.finest("Cancelling the previous flights: "+previousFlight.hashCode()+" "+ previousFlight.toString());
 			previousFlight.getRetransmitTask().cancel();
 			previousFlight.setRetransmitTask(null);
 			flights.remove(addressToKey(peerAddress));
