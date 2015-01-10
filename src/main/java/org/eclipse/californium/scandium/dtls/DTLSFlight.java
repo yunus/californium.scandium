@@ -143,5 +143,19 @@ public class DTLSFlight {
 	public void setRetransmitTask(TimerTask retransmitTask) {
 		this.retransmitTask = retransmitTask;
 	}
+	@Override
+	public String toString(){
+		StringBuilder sb = new StringBuilder();
+		sb.append("--------------START of FLIGHT--------------\n");
+		for (Record message : messages){
+			try{
+			sb.append("Type: " + ((HandshakeMessage)message.getFragment()).getMessageType().toString() + "\n");
+			}catch(Exception ex){
+				// do nothing
+			}
+		}
+		sb.append("--------------END of FLIGHT--------------\n");
+		return sb.toString();
+	}
 
 }
