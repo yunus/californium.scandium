@@ -40,7 +40,7 @@ public class DTLSConnectorConfig {
 	private int maxPayloadSize = maxFragmentLength + 25;
 
 	/** The initial timer value for retransmission; rfc6347, section: 4.2.4.1 */
-	private int retransmissionTimeout = 1000;
+	private int retransmissionTimeout = 10000;
 
 	/**
 	 * Maximal number of retransmissions before the attempt to transmit a

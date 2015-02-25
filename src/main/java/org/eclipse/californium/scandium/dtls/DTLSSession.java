@@ -109,7 +109,7 @@ public class DTLSSession {
 	/**
 	 * Indicates that both peers should exhance webId uri message
 	 */
-	private boolean exchangeWebIDURI = true;
+	private boolean exchangeWebIDURI = false;
 	
 	/**
 	 * Indicates whether only the RawPublicKey is sent or a full X.509
@@ -324,5 +324,6 @@ public class DTLSSession {
 
 	public void setWebidUri(String webidUri) {
 		this.webidUri = webidUri;
+		this.exchangeWebIDURI = true;
 	}	
 }
